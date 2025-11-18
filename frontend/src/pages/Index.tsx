@@ -1,4 +1,4 @@
-// Update this page
+// Placeholder for if we want a homepage
 
 const Index = () => {
     return (
