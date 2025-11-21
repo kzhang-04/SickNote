@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlmodel import Session
+from sqlmodel import Session, select
 from .db import init_db, get_session, create_illness_log
-from .models import LogCreate, LogRead
+from .models import LogCreate, LogRead, Friend, FriendRead
 
 # FastAPI
 app = FastAPI()
@@ -42,3 +42,15 @@ def create_report(
 ):
     db_log = create_illness_log(session=session, log_in=log_data)
     return db_log
+# Friends API:
+@app.get("/friends", response_model=list[FriendRead])
+def get_friends(session: Session = Depends(get_session)):
+    # For now, we assume the current student has user id 1
+    owner_user_id = 1
+
+    friends = session.exec(
+        select(Friend).where(Friend.owner_user_id == owner_user_id)
+    ).all()
+
+    # We return Friend objects; FastAPI will convert them to FriendRead
+    return friends
