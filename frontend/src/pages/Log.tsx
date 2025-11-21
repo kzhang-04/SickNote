@@ -5,7 +5,7 @@ const Log = () => {
     const [severity, setSeverity] = useState("");
     const [recoveryTime, setRecoveryTime] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!symptoms || !severity || !recoveryTime) {
@@ -13,12 +13,36 @@ const Log = () => {
             return;
         }
 
-        alert("Your health report has been logged successfully.");
+        const reportData = {
+            symptoms,
+            severity: Number(severity),
+            recoveryTime,
+            submittedAt: new Date().toISOString(),
+        };
 
-        // Reset form
-        setSymptoms("");
-        setSeverity("");
-        setRecoveryTime("");
+        try {
+            const response = await fetch('api/reports', {
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(reportData),
+            });
+
+            if (response.ok) {
+                alert("Your health report has been logged successfully.");
+                // Reset form
+                setSymptoms("");
+                setSeverity("");
+                setRecoveryTime("");
+            } else {
+                const errorData = await response.json();
+                alert(`Failed to log report: ${errorData.message || response.statusText}`);
+            }
+        } catch (error) {
+            console.error("Error submitting report:", error);
+            alert("A network error occurred. Please try again.");
+        }
     };
 
     return (
@@ -49,7 +73,7 @@ const Log = () => {
                             </label>
                             <input
                                 id="severity"
-                                type="text"
+                                type="number"
                                 placeholder="On a scale of 1-5"
                                 value={severity}
                                 onChange={(e) => setSeverity(e.target.value)}
