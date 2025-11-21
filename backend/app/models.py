@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Field, Column, JSON
 class LogCreate(SQLModel):
     symptoms: str
     severity: int
-    recoveryTime: str
+    recovery_time: str
 
 # For Illness Log
 # This will create the table, but you still need to read it with a class using FastAPI
