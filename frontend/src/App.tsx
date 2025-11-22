@@ -6,7 +6,8 @@ import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Classes from "./pages/Classes";
 import Friends from "./pages/Friends";
-import Notifications from "./pages/NotifyFriends";
+import NotifyFriends from "./pages/NotifyFriends";
+import ClassSummary from "./pages/ClassSummary";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,7 +22,8 @@ const App = () => (
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/classes" element={<Classes />} />
                 <Route path="/friends" element={<Friends />} />
-                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/notify-friends" element={<NotifyFriends />} />
+                <Route path="/class-summary" element={<ClassSummary />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
             </Routes>

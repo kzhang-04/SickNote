@@ -8,7 +8,8 @@ const Navigation = () => {
         { name: "Log", path: "/", icon: FileText },
         { name: "History", path: "/history", icon: History },
         { name: "Friends", path: "/friends", icon: UserPlus },
-        { name: "Notifications", path: "/notifications", icon: Bell },
+        { name: "Notify Friends", path: "/notify-friends", icon: Bell },
+        { name: "Class Summary", path: "/class-summary", icon: UserPlus },
     ];
 
     return (
