@@ -6,7 +6,7 @@ import History from "./pages/History";
 import Settings from "./pages/Settings";
 import Classes from "./pages/Classes";
 import Friends from "./pages/Friends";
-import Notifications from "./pages/Notifications";
+import Notifications from "./pages/NotifyFriends";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
