@@ -37,8 +37,9 @@ class NotifyRequest(SQLModel):
 
 
 # For Professor Summary
-# I just have the schema class here I'm not sure if you need a table.
 class SummaryResponse(SQLModel):
     available: bool
-    count: Optional[int] = None
+    count: Optional[int] 
     avg_severity: Optional[float] = None
+    common_symptoms: Optional[List[str]] = None
+    message: Optional[str] = None

@@ -3,12 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from .db import init_db, get_session, create_illness_log
-from .models import LogCreate, LogRead, Friend, FriendRead, NotifyRequest
+from .models import LogCreate, LogRead, Friend, FriendRead, NotifyRequest, SummaryResponse, IllnessLog
 from .notifications import send_email
 
 # FastAPI
 app = FastAPI()
-
+{
+  "available": True,
+  "count": 15,
+  "avg_severity": 3.27,
+  "common_symptoms": ["fever", "cough", "headache", "fatigue", "sore"],
+  "message": "Class health summary generated successfully"
+}
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -94,3 +100,41 @@ def notify_friends(
     return {
         "notified_count": len(friends)
     }
+
+
+@app.get("/api/class-summary", response_model=SummaryResponse)
+def get_class_summary(session: Session = Depends(get_session)):
+    MIN_REPORTS = 1 # do not return data if less than this number of reports
+    
+    # Get all illness logs
+    logs = session.exec(select(IllnessLog)).all()
+    
+    if len(logs) < MIN_REPORTS:
+        return SummaryResponse(
+            available=False,
+            message=f"Insufficient data. Need at least {MIN_REPORTS} reports for privacy (currently: {len(logs)})"
+        )
+    
+    # Calculate stats
+    total_count = len(logs)
+    avg_severity = sum(log.severity for log in logs) / total_count
+    
+    # find most common symptoms
+    symptom_freq: dict[str, int] = {}
+    for log in logs:
+        symptoms = [s.strip().lower() for s in log.symptoms.replace(',', ' ').split()]
+        for symptom in symptoms:
+            if symptom: # if symptom is not empty
+                symptom_freq[symptom] = symptom_freq.get(symptom, 0) + 1
+    
+    # get top 5 most common symptoms
+    common_symptoms = sorted(symptom_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+    common_symptoms_list = [symptom for symptom, _ in common_symptoms]
+    
+    return SummaryResponse(
+        available=True,
+        count=total_count,
+        avg_severity=round(avg_severity, 2),
+        common_symptoms=common_symptoms_list,
+        message="Class health summary generated successfully"
+    )
