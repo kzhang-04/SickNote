@@ -1,11 +1,30 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Column, JSON
+from pydantic import field_validator
 
 class LogCreate(SQLModel):
     symptoms: str
     severity: int
-    recovery_time: str
+    recoveryTime: int
+
+    # Ensure severity is within 1-5
+    @field_validator('severity')
+    def valid_severity(cls, v):
+        if not isinstance(v, int):
+            raise ValueError("Severity must be an integer")
+        if v < 1 or v > 5:
+            raise ValueError("Severity must be between 1 and 5")
+        return v
+
+    # Ensure recoveryTime is positive
+    @field_validator('recoveryTime')
+    def valid_recoveryTime(cls, v):
+        if not isinstance(v, int):
+            raise ValueError("Recovery time must be an integer")
+        if v <= 0:
+            raise ValueError("Recovery time must be positive")
+        return v
 
 # For Illness Log
 # This will create the table, but you still need to read it with a class using FastAPI
@@ -13,7 +32,7 @@ class IllnessLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     symptoms: str
     severity: int = Field(index=True)  # 1..5
-    recovery_time: str
+    recoveryTime: int
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class LogRead(LogCreate):

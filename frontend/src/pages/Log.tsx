@@ -13,15 +13,25 @@ const Log = () => {
             return;
         }
 
+        if (isNaN(Number(severity))) {
+            alert("Severity must be a number between 1 and 5");
+            return;
+        }
+
+        if (isNaN(Number(recoveryTime))) {
+            alert("Recovery time must be an integer");
+            return;
+        }
+
         const reportData = {
             symptoms,
             severity: Number(severity),
-            recoveryTime,
+            recoveryTime: Number(recoveryTime),
             submittedAt: new Date().toISOString(),
         };
 
         try {
-            const response = await fetch('api/reports', {
+            const response = await fetch('http://localhost:8000/api/reports', {
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/json",
@@ -37,7 +47,12 @@ const Log = () => {
                 setRecoveryTime("");
             } else {
                 const errorData = await response.json();
-                alert(`Failed to log report: ${errorData.message || response.statusText}`);
+                let userMsg = "Failed to log report.";
+
+                if (errorData.detail && Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+                    userMsg = `Validation Error: ${errorData.detail[0].msg}`;
+                }
+                alert(userMsg);
             }
         } catch (error) {
             console.error("Error submitting report:", error);
@@ -88,7 +103,7 @@ const Log = () => {
                             <input
                                 id="recovery-time"
                                 type="text"
-                                placeholder="e.g., 2-3 days, 1 week"
+                                placeholder="Number of days"
                                 value={recoveryTime}
                                 onChange={(e) => setRecoveryTime(e.target.value)}
                                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"

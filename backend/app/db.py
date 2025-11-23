@@ -15,7 +15,7 @@ def get_session():
         yield session
 
 
-def init_db():
+def init_db(engine=engine):
     SQLModel.metadata.create_all(engine)
 
 
