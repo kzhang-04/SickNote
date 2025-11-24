@@ -1,4 +1,7 @@
 # Python
+test_app.db
+.coverage
+app.db
 __pycache__/
 *.py[cod]
 *$py.class

@@ -8,13 +8,7 @@ from .notifications import send_email
 
 # FastAPI
 app = FastAPI()
-{
-  "available": True,
-  "count": 15,
-  "avg_severity": 3.27,
-  "common_symptoms": ["fever", "cough", "headache", "fatigue", "sore"],
-  "message": "Class health summary generated successfully"
-}
+
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",

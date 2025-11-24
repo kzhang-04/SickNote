@@ -1,7 +1,10 @@
+import os
 from sqlmodel import SQLModel, create_engine, Session
 from .models import IllnessLog, LogCreate
 
-DATABASE_URL = "sqlite:///./app.db"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
+DATABASE_PATH = os.path.join(PROJECT_ROOT, "app.db")
+DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 engine = create_engine(
     DATABASE_URL,
