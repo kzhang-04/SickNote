@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Column, JSON
-from pydantic import field_validator
+from pydantic import validator
 
 class LogCreate(SQLModel):
     symptoms: str
@@ -9,7 +9,7 @@ class LogCreate(SQLModel):
     recoveryTime: int
 
     # Ensure severity is within 1-5
-    @field_validator('severity')
+    @validator('severity')
     def valid_severity(cls, v):
         if not isinstance(v, int):
             raise ValueError("Severity must be an integer")
@@ -18,7 +18,7 @@ class LogCreate(SQLModel):
         return v
 
     # Ensure recoveryTime is positive
-    @field_validator('recoveryTime')
+    @validator('recoveryTime')
     def valid_recoveryTime(cls, v):
         if not isinstance(v, int):
             raise ValueError("Recovery time must be an integer")

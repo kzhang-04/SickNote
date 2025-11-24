@@ -23,7 +23,7 @@ def init_db(engine=engine):
 
 
 def create_illness_log(session: Session, log_in: LogCreate) -> IllnessLog:
-    db_log = IllnessLog.model_validate(log_in.model_dump())
+    db_log = IllnessLog(**log_in.dict())
 
     session.add(db_log)
     session.commit()
