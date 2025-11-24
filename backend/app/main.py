@@ -49,6 +49,20 @@ def create_report(
     return db_log
 
 
+@app.delete("/api/reports")
+def delete_all_reports(session: Session = Depends(get_session)):
+    """Delete all illness log reports"""
+    logs = session.exec(select(IllnessLog)).all()
+    count = len(logs)
+    
+    for log in logs:
+        session.delete(log)
+    
+    session.commit()
+    
+    return {"deleted_count": count, "message": f"Deleted {count} illness reports"}
+
+
 # Friends API:
 @app.get("/friends", response_model=list[FriendRead])
 def get_friends(session: Session = Depends(get_session)):
@@ -98,7 +112,7 @@ def notify_friends(
 
 @app.get("/api/class-summary", response_model=SummaryResponse)
 def get_class_summary(session: Session = Depends(get_session)):
-    MIN_REPORTS = 1 # do not return data if less than this number of reports
+    MIN_REPORTS = 10 # do not return data if less than this number of reports
     
     # Get all illness logs
     logs = session.exec(select(IllnessLog)).all()

@@ -1,12 +1,17 @@
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, create_engine, Session
+from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.db import get_session, init_db
 from app.models import IllnessLog
 import pytest
 
 # Create a temporary in-memory SQLite DB for testing
-test_engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+test_engine = create_engine(
+    "sqlite:///:memory:", 
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
 
 # Override the dependency
 def get_test_session():
