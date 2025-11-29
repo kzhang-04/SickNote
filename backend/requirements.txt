@@ -4,3 +4,6 @@ sqlmodel
 pytest
 pytest-cov
 httpx
+email-validator
+passlib[bcrypt]
+python-jose[cryptography]

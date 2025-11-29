@@ -3,8 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from .db import init_db, get_session, create_illness_log
-from .models import LogCreate, LogRead, Friend, FriendRead, NotifyRequest, SummaryResponse, IllnessLog
+from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
+                      SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse )
 from .notifications import send_email
+from .security import authenticate_user, create_access_token
 
 # FastAPI
 app = FastAPI()
@@ -54,12 +56,12 @@ def delete_all_reports(session: Session = Depends(get_session)):
     """Delete all illness log reports"""
     logs = session.exec(select(IllnessLog)).all()
     count = len(logs)
-    
+
     for log in logs:
         session.delete(log)
-    
+
     session.commit()
-    
+
     return {"deleted_count": count, "message": f"Deleted {count} illness reports"}
 
 
@@ -113,20 +115,20 @@ def notify_friends(
 @app.get("/api/class-summary", response_model=SummaryResponse)
 def get_class_summary(session: Session = Depends(get_session)):
     MIN_REPORTS = 10 # do not return data if less than this number of reports
-    
+
     # Get all illness logs
     logs = session.exec(select(IllnessLog)).all()
-    
+
     if len(logs) < MIN_REPORTS:
         return SummaryResponse(
             available=False,
             message=f"Insufficient data. Need at least {MIN_REPORTS} reports for privacy (currently: {len(logs)})"
         )
-    
+
     # Calculate stats
     total_count = len(logs)
     avg_severity = sum(log.severity for log in logs) / total_count
-    
+
     # find most common symptoms
     symptom_freq: dict[str, int] = {}
     for log in logs:
@@ -134,15 +136,37 @@ def get_class_summary(session: Session = Depends(get_session)):
         for symptom in symptoms:
             if symptom: # if symptom is not empty
                 symptom_freq[symptom] = symptom_freq.get(symptom, 0) + 1
-    
+
     # get top 5 most common symptoms
     common_symptoms = sorted(symptom_freq.items(), key=lambda x: x[1], reverse=True)[:5]
     common_symptoms_list = [symptom for symptom, _ in common_symptoms]
-    
+
     return SummaryResponse(
         available=True,
         count=total_count,
         avg_severity=round(avg_severity, 2),
         common_symptoms=common_symptoms_list,
         message="Class health summary generated successfully"
+    )
+
+
+# Auth
+@app.post("/auth/login", response_model=LoginResponse)
+def login(payload: LoginRequest, session: Session = Depends(get_session)):
+    user = authenticate_user(session, payload.email, payload.password)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    token = create_access_token({"sub": str(user.id), "role": user.role})
+
+    return LoginResponse(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        role=user.role,
+        token=token,
     )

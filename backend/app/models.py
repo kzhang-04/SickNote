@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Column, JSON
-from pydantic import validator
+from pydantic import validator, EmailStr
 
 class LogCreate(SQLModel):
     symptoms: str
@@ -62,3 +62,38 @@ class SummaryResponse(SQLModel):
     avg_severity: Optional[float] = None
     common_symptoms: Optional[List[str]] = None
     message: Optional[str] = None
+
+# For auth
+
+class UserBase(SQLModel):
+    email: EmailStr = Field(index=True)
+    full_name: Optional[str] = None
+    role: str = "student"  # or "professor"
+
+
+class User(UserBase, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    hashed_password: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class UserRead(UserBase):
+    id: int
+    created_at: datetime
+
+
+class LoginRequest(SQLModel):
+    email: EmailStr
+    password: str
+
+
+class LoginResponse(SQLModel):
+    id: int
+    email: EmailStr
+    full_name: Optional[str] = None
+    role: str
+    token: str
