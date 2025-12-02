@@ -1,6 +1,5 @@
 import React, { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { loginRequest } from "../api/auth";
 
 const LoginPage: React.FC = () => {
     const { login } = useAuth();
@@ -15,12 +14,8 @@ const LoginPage: React.FC = () => {
         setLoading(true);
 
         try {
-            const data = await loginRequest(email, password);
-            // backend: { id, email, full_name, role, token }
-            if (!data.token) {
-                throw new Error("No token returned from server");
-            }
-            login(data.token, data.role ?? null);
+            await login(email, password);
+            // if it doesn't throw, you're logged in and App will switch to AuthedApp
         } catch (err: unknown) {
             console.error(err);
             if (err instanceof Error) {
@@ -44,9 +39,9 @@ const LoginPage: React.FC = () => {
                 </h2>
 
                 <label className="block mb-4">
-          <span className="text-sm font-medium text-foreground mb-2 block">
-            Email
-          </span>
+                    <span className="text-sm font-medium text-foreground mb-2 block">
+                        Email
+                    </span>
                     <input
                         type="email"
                         autoComplete="email"
@@ -59,9 +54,9 @@ const LoginPage: React.FC = () => {
                 </label>
 
                 <label className="block mb-4">
-          <span className="text-sm font-medium text-foreground mb-2 block">
-            Password
-          </span>
+                    <span className="text-sm font-medium text-foreground mb-2 block">
+                        Password
+                    </span>
                     <input
                         type="password"
                         autoComplete="current-password"

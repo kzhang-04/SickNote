@@ -114,7 +114,7 @@ def notify_friends(
 
 @app.get("/api/class-summary", response_model=SummaryResponse)
 def get_class_summary(session: Session = Depends(get_session)):
-    MIN_REPORTS = 10 # do not return data if less than this number of reports
+    MIN_REPORTS = 4  # do not return data if less than this number of reports
 
     # Get all illness logs
     logs = session.exec(select(IllnessLog)).all()
@@ -122,6 +122,7 @@ def get_class_summary(session: Session = Depends(get_session)):
     if len(logs) < MIN_REPORTS:
         return SummaryResponse(
             available=False,
+            count=len(logs),  # <--- add this
             message=f"Insufficient data. Need at least {MIN_REPORTS} reports for privacy (currently: {len(logs)})"
         )
 
@@ -134,11 +135,13 @@ def get_class_summary(session: Session = Depends(get_session)):
     for log in logs:
         symptoms = [s.strip().lower() for s in log.symptoms.replace(',', ' ').split()]
         for symptom in symptoms:
-            if symptom: # if symptom is not empty
+            if symptom:  # if symptom is not empty
                 symptom_freq[symptom] = symptom_freq.get(symptom, 0) + 1
 
     # get top 5 most common symptoms
-    common_symptoms = sorted(symptom_freq.items(), key=lambda x: x[1], reverse=True)[:5]
+    common_symptoms = sorted(
+        symptom_freq.items(), key=lambda x: x[1], reverse=True
+    )[:5]
     common_symptoms_list = [symptom for symptom, _ in common_symptoms]
 
     return SummaryResponse(
@@ -153,6 +156,7 @@ def get_class_summary(session: Session = Depends(get_session)):
 # Auth
 @app.post("/auth/login", response_model=LoginResponse)
 def login(payload: LoginRequest, session: Session = Depends(get_session)):
+    print(">>> /auth/login payload:", payload.dict())
     user = authenticate_user(session, payload.email, payload.password)
 
     if not user:

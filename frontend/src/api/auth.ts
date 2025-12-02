@@ -1,13 +1,11 @@
-// src/api/auth.ts
 import type { LoginResponse } from "../types/auth";
-
-const API_BASE = "http://localhost:8000";
+import { API_BASE_URL } from "./config";
 
 export async function loginRequest(
     email: string,
     password: string
 ): Promise<LoginResponse> {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -40,6 +38,5 @@ export async function loginRequest(
         throw new Error(msg);
     }
 
-    // At this point we expect the backend's success shape
     return data as LoginResponse;
 }

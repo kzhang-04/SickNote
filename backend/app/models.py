@@ -58,7 +58,7 @@ class NotifyRequest(SQLModel):
 # For Professor Summary
 class SummaryResponse(SQLModel):
     available: bool
-    count: Optional[int] 
+    count: Optional[int] = None
     avg_severity: Optional[float] = None
     common_symptoms: Optional[List[str]] = None
     message: Optional[str] = None

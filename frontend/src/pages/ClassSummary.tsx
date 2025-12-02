@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../auth/AuthContext";
+import { API_BASE_URL } from "../api/config";
 
 type SummaryData = {
     available: boolean;
@@ -8,14 +10,20 @@ type SummaryData = {
     message?: string;
 };
 
-const API_BASE_URL = "http://127.0.0.1:8000";
-
 const ClassSummary = () => {
+    const { userRole } = useAuth();
+
     const [summary, setSummary] = useState<SummaryData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        // Only professors can see class summary
+        if (userRole !== "professor") {
+            setLoading(false);
+            return;
+        }
+
         const fetchSummary = async () => {
             try {
                 setLoading(true);
@@ -40,8 +48,31 @@ const ClassSummary = () => {
         };
 
         void fetchSummary();
-    }, []);
+    }, [userRole]);
 
+    // If not professor, show restricted view
+    if (userRole !== "professor") {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">
+                        Class Health Summary
+                    </h1>
+                    <div className="bg-card p-6 rounded-lg border border-border">
+                        <p className="text-foreground font-semibold">
+                            Access restricted
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            The class summary is only available to professors.
+                            Please log in with a professor account to view aggregated class data.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Professor view
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 max-w-4xl">
