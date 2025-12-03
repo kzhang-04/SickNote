@@ -1,32 +1,36 @@
-import { Settings, Users, FileText, UserPlus, Bell, History, LogOut } from "lucide-react";
+import {
+    Settings,
+    Users,
+    FileText,
+    UserPlus,
+    Bell,
+    History,
+    LogOut,
+} from "lucide-react";
 import { NavLink } from "./NavLink";
 import { useAuth } from "../auth/AuthContext";
 
 const Navigation = () => {
     const { logout, userRole } = useAuth();
 
-    const navItems = [
+    // Tabs for students (NOT professors)
+    const studentNav = [
         { name: "Settings", path: "/settings", icon: Settings },
-
-        // Student-only
-        ...(userRole === "student"
-            ? [{ name: "Classes", path: "/classes", icon: Users }]
-            : []),
-
+        { name: "Classes", path: "/classes", icon: Users },
         { name: "Log", path: "/", icon: FileText },
         { name: "History", path: "/history", icon: History },
         { name: "Friends", path: "/friends", icon: UserPlus },
         { name: "Notify Friends", path: "/notify-friends", icon: Bell },
-
-        // Professor-only
-        ...(userRole === "professor"
-            ? [
-                { name: "Class Summary", path: "/class-summary", icon: Users },
-                { name: "Add a New Class", path: "/add-class", icon: Users },
-            ]
-            : []),
     ];
 
+    // Tabs for professors ONLY
+    const professorNav = [
+        { name: "Class Summary", path: "/class-summary", icon: Users },
+        { name: "Add a New Class", path: "/add-class", icon: Users },
+    ];
+
+    // Decide which nav to show
+    const navItems = userRole === "professor" ? professorNav : studentNav;
 
     return (
         <nav className="bg-card border-b border-border shadow-sm">

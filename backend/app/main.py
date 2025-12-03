@@ -57,6 +57,21 @@ def create_report(
     return db_log
 
 
+@app.get("/api/reports", response_model=list[LogRead])
+def list_reports(session: Session = Depends(get_session)):
+    """
+    Return all illness logs for the current user (for now: user_id = 1),
+    most recent first.
+    """
+    current_user_id = 1  # same fake user as in create_report
+
+    logs = session.exec(
+        select(IllnessLog)
+        .where(IllnessLog.user_id == current_user_id)
+        .order_by(IllnessLog.created_at.desc())
+    ).all()
+
+    return logs
 
 
 @app.delete("/api/reports")
@@ -71,6 +86,32 @@ def delete_all_reports(session: Session = Depends(get_session)):
     session.commit()
 
     return {"deleted_count": count, "message": f"Deleted {count} illness reports"}
+
+
+@app.delete("/api/reports/{log_id}")
+def delete_report(
+    log_id: int,
+    session: Session = Depends(get_session),
+):
+    """
+    Delete a single illness log for the current user (for now: user_id = 1).
+    """
+    current_user_id = 1  # same fake "logged-in" user
+
+    log = session.exec(
+        select(IllnessLog).where(
+            IllnessLog.id == log_id,
+            IllnessLog.user_id == current_user_id,
+        )
+    ).first()
+
+    if not log:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    session.delete(log)
+    session.commit()
+
+    return {"message": "Report deleted", "log_id": log_id}
 
 
 # Friends API:

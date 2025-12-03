@@ -1,6 +1,6 @@
 // src/App.tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Navigation from "./components/Navigation";
 import Log from "./pages/Log";
@@ -19,25 +19,121 @@ import AddClass from "./pages/AddClass";
 const queryClient = new QueryClient();
 
 const AuthedApp = () => {
-    const { token } = useAuth();
+    const { token, userRole } = useAuth();
 
     if (!token) {
         return <LoginPage />;
     }
 
+    const isStudent = userRole === "student";
+    const isProfessor = userRole === "professor";
+
     return (
         <>
             <Navigation />
             <Routes>
-                <Route path="/" element={<Log />} />
-                <Route path="/history" element={<History />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/classes" element={<Classes />} />
-                <Route path="/friends" element={<Friends />} />
-                <Route path="/notify-friends" element={<NotifyFriends />} />
-                <Route path="/class-summary" element={<ClassSummary />} />
-                {/* 👇 New route */}
-                <Route path="/add-class" element={<AddClass />} />
+                {/* Role-based default for "/" */}
+                <Route
+                    path="/"
+                    element={
+                        isProfessor ? (
+                            <Navigate to="/class-summary" replace />
+                        ) : (
+                            <Log />
+                        )
+                    }
+                />
+
+                {/* ---------- STUDENT-ONLY ROUTES ---------- */}
+                <Route
+                    path="/history"
+                    element={
+                        isStudent ? (
+                            <History />
+                        ) : (
+                            <Navigate
+                                to={isProfessor ? "/class-summary" : "/"}
+                                replace
+                            />
+                        )
+                    }
+                />
+                <Route
+                    path="/settings"
+                    element={
+                        isStudent ? (
+                            <Settings />
+                        ) : (
+                            <Navigate
+                                to={isProfessor ? "/class-summary" : "/"}
+                                replace
+                            />
+                        )
+                    }
+                />
+                <Route
+                    path="/classes"
+                    element={
+                        isStudent ? (
+                            <Classes />
+                        ) : (
+                            <Navigate
+                                to={isProfessor ? "/class-summary" : "/"}
+                                replace
+                            />
+                        )
+                    }
+                />
+                <Route
+                    path="/friends"
+                    element={
+                        isStudent ? (
+                            <Friends />
+                        ) : (
+                            <Navigate
+                                to={isProfessor ? "/class-summary" : "/"}
+                                replace
+                            />
+                        )
+                    }
+                />
+                <Route
+                    path="/notify-friends"
+                    element={
+                        isStudent ? (
+                            <NotifyFriends />
+                        ) : (
+                            <Navigate
+                                to={isProfessor ? "/class-summary" : "/"}
+                                replace
+                            />
+                        )
+                    }
+                />
+
+                {/* ---------- PROFESSOR-ONLY ROUTES ---------- */}
+                <Route
+                    path="/class-summary"
+                    element={
+                        isProfessor ? (
+                            <ClassSummary />
+                        ) : (
+                            <Navigate to={isStudent ? "/" : "/"} replace />
+                        )
+                    }
+                />
+                <Route
+                    path="/add-class"
+                    element={
+                        isProfessor ? (
+                            <AddClass />
+                        ) : (
+                            <Navigate to={isStudent ? "/" : "/"} replace />
+                        )
+                    }
+                />
+
+                {/* Fallback */}
                 <Route path="*" element={<NotFound />} />
             </Routes>
         </>
