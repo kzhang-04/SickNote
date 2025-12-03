@@ -6,7 +6,8 @@ from datetime import datetime, timezone
 from .db import init_db, get_session, create_illness_log
 from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
                       SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse,
-                      ClassEnrollment, AddStudentRequest, StudentHealth)
+                      ClassEnrollment, AddStudentRequest, StudentHealth,
+                      ClassRead, Class)
 from .notifications import send_email
 from .security import authenticate_user, create_access_token
 
@@ -119,20 +120,17 @@ def notify_friends(
     }
 
 
-@app.get("/api/class-summary", response_model=SummaryResponse)
-def get_class_summary(session: Session = Depends(get_session)):
-    # TODO later: use current_user.id and assert role == "professor"
-    professor_id = 2  # demo: assume this is the logged-in professor
-
-    # 1) Get roster for this professor
+@app.get("/api/classes/{class_id}/summary", response_model=SummaryResponse)
+def get_class_summary(class_id: int, session: Session = Depends(get_session)):
+    # 1) Get roster for this class
     enrollments = session.exec(
-        select(ClassEnrollment).where(ClassEnrollment.professor_id == professor_id)
+        select(ClassEnrollment).where(ClassEnrollment.class_id == class_id)
     ).all()
 
     if not enrollments:
         return SummaryResponse(
             available=False,
-            message="No students have been added to this professor's class yet.",
+            message="No students have been added to this class yet.",
             students=[],
         )
 
@@ -177,7 +175,7 @@ def get_class_summary(session: Session = Depends(get_session)):
             latest_symptoms = latest.symptoms
             latest_severity = latest.severity
 
-            # Normalize created_at to be timezone-aware (UTC)
+            # Normalize datetime to be timezone-aware
             created_at = latest.created_at
             if created_at.tzinfo is None:
                 created_at = created_at.replace(tzinfo=timezone.utc)
@@ -213,9 +211,7 @@ def get_class_summary(session: Session = Depends(get_session)):
     # Aggregated stats: only for sick students
     sick_students = [s for s in students_health if s.is_sick]
     count = len(sick_students)
-    avg_severity = (
-        sum(severities) / len(severities) if severities else None
-    )
+    avg_severity = sum(severities) / len(severities) if severities else None
 
     common_symptoms_sorted = sorted(
         symptom_freq.items(), key=lambda x: x[1], reverse=True
@@ -254,12 +250,32 @@ def login(payload: LoginRequest, session: Session = Depends(get_session)):
         token=token,
     )
 
-@app.post("/api/professors/{professor_id}/students")
-def add_student_to_professor(
-    professor_id: int,
+
+@app.get("/api/professor/classes", response_model=list[ClassRead])
+def get_professor_classes(session: Session = Depends(get_session)):
+    # TODO later: use current_user.id from token
+    professor_id = 2  # for now, we know professor@example.com has id=2
+
+    classes = session.exec(
+        select(Class).where(Class.professor_id == professor_id)
+    ).all()
+    return classes
+
+
+@app.post("/{class_id}/students")
+def add_student_to_class(
+    class_id: int,
     payload: AddStudentRequest,
     session: Session = Depends(get_session),
 ):
+    # Find the class
+    clazz = session.exec(
+        select(Class).where(Class.id == class_id)
+    ).first()
+
+    if not clazz:
+        raise HTTPException(status_code=404, detail="Class not found")
+
     # Find the student user by email
     student = session.exec(
         select(User).where(User.email == payload.student_email)
@@ -268,18 +284,18 @@ def add_student_to_professor(
     if not student:
         raise HTTPException(status_code=404, detail="Student user not found")
 
-    # Prevent duplicates
+    # Prevent duplicate enrollment
     existing = session.exec(
         select(ClassEnrollment).where(
-            ClassEnrollment.professor_id == professor_id,
+            ClassEnrollment.class_id == class_id,
             ClassEnrollment.student_id == student.id,
         )
     ).first()
     if existing:
-        return {"message": "Student already in roster"}
+        return {"message": "Student already in this class"}
 
     enrollment = ClassEnrollment(
-        professor_id=professor_id,
+        class_id=class_id,
         student_id=student.id,
     )
     session.add(enrollment)
@@ -291,4 +307,6 @@ def add_student_to_professor(
         "enrollment_id": enrollment.id,
         "student_id": student.id,
         "student_email": student.email,
+        "class_id": clazz.id,
+        "class_name": clazz.name,
     }

@@ -57,10 +57,21 @@ class NotifyRequest(SQLModel):
 
 
 # For Professor Summary
+class Class(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+    code: Optional[str] = None  # e.g. "CS101 A1"
+    professor_id: int = Field(foreign_key="user.id")
+
 class ClassEnrollment(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    professor_id: int = Field(foreign_key="user.id")
+    class_id: int = Field(foreign_key="class.id")
     student_id: int = Field(foreign_key="user.id")
+
+class ClassRead(SQLModel):
+    id: int
+    name: str
+    code: Optional[str] = None
 
 class StudentHealth(SQLModel):
     student_id: int
@@ -79,7 +90,7 @@ class SummaryResponse(SQLModel):
     message: Optional[str] = None
 
     # per-student health rows
-    students: List[StudentHealth] = []
+    students: List[StudentHealth] = Field(default_factory=list)
 
 class AddStudentRequest(SQLModel):
     student_email: EmailStr
