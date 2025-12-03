@@ -30,6 +30,7 @@ class LogCreate(SQLModel):
 # This will create the table, but you still need to read it with a class using FastAPI
 class IllnessLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
     symptoms: str
     severity: int = Field(index=True)  # 1..5
     recoveryTime: int
@@ -56,12 +57,32 @@ class NotifyRequest(SQLModel):
 
 
 # For Professor Summary
+class ClassEnrollment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    professor_id: int = Field(foreign_key="user.id")
+    student_id: int = Field(foreign_key="user.id")
+
+class StudentHealth(SQLModel):
+    student_id: int
+    full_name: Optional[str] = None
+    email: EmailStr
+    is_sick: bool
+    latest_symptoms: Optional[str] = None
+    latest_severity: Optional[int] = None
+    latest_created_at: Optional[datetime] = None
+
 class SummaryResponse(SQLModel):
     available: bool
-    count: Optional[int] = None
+    count: Optional[int] = None  # number of sick students
     avg_severity: Optional[float] = None
     common_symptoms: Optional[List[str]] = None
     message: Optional[str] = None
+
+    # per-student health rows
+    students: List[StudentHealth] = []
+
+class AddStudentRequest(SQLModel):
+    student_email: EmailStr
 
 # For auth
 

@@ -22,8 +22,17 @@ def init_db(engine=engine):
     SQLModel.metadata.create_all(engine)
 
 
-def create_illness_log(session: Session, log_in: LogCreate) -> IllnessLog:
-    db_log = IllnessLog(**log_in.dict())
+def create_illness_log(
+    session: Session,
+    log_in: LogCreate,
+    user_id: int,
+) -> IllnessLog:
+    db_log = IllnessLog(
+        user_id=user_id,
+        symptoms=log_in.symptoms,
+        severity=log_in.severity,
+        recoveryTime=log_in.recoveryTime,
+    )
 
     session.add(db_log)
     session.commit()

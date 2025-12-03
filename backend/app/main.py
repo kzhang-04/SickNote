@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
+from datetime import datetime, timezone
 
 from .db import init_db, get_session, create_illness_log
 from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
-                      SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse )
+                      SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse,
+                      ClassEnrollment, AddStudentRequest, StudentHealth)
 from .notifications import send_email
 from .security import authenticate_user, create_access_token
 
@@ -47,8 +49,13 @@ def create_report(
     log_data: LogCreate,
     session: Session = Depends(get_session),
 ):
-    db_log = create_illness_log(session=session, log_in=log_data)
+    # TEMP: hard-code a student id until you wire up real current_user
+    current_user_id = 1
+
+    db_log = create_illness_log(session=session, log_in=log_data, user_id=current_user_id)
     return db_log
+
+
 
 
 @app.delete("/api/reports")
@@ -114,42 +121,114 @@ def notify_friends(
 
 @app.get("/api/class-summary", response_model=SummaryResponse)
 def get_class_summary(session: Session = Depends(get_session)):
-    MIN_REPORTS = 4  # do not return data if less than this number of reports
+    # TODO later: use current_user.id and assert role == "professor"
+    professor_id = 2  # demo: assume this is the logged-in professor
 
-    # Get all illness logs
-    logs = session.exec(select(IllnessLog)).all()
+    # 1) Get roster for this professor
+    enrollments = session.exec(
+        select(ClassEnrollment).where(ClassEnrollment.professor_id == professor_id)
+    ).all()
 
-    if len(logs) < MIN_REPORTS:
+    if not enrollments:
         return SummaryResponse(
             available=False,
-            count=len(logs),  # <--- add this
-            message=f"Insufficient data. Need at least {MIN_REPORTS} reports for privacy (currently: {len(logs)})"
+            message="No students have been added to this professor's class yet.",
+            students=[],
         )
 
-    # Calculate stats
-    total_count = len(logs)
-    avg_severity = sum(log.severity for log in logs) / total_count
+    student_ids = [e.student_id for e in enrollments]
 
-    # find most common symptoms
-    symptom_freq: dict[str, int] = {}
+    # 2) Fetch all logs for those students (latest first)
+    logs = session.exec(
+        select(IllnessLog)
+        .where(IllnessLog.user_id.in_(student_ids))
+        .order_by(IllnessLog.created_at.desc())
+    ).all()
+
+    # Group latest log per student
+    latest_by_student: dict[int, IllnessLog] = {}
     for log in logs:
-        symptoms = [s.strip().lower() for s in log.symptoms.replace(',', ' ').split()]
-        for symptom in symptoms:
-            if symptom:  # if symptom is not empty
-                symptom_freq[symptom] = symptom_freq.get(symptom, 0) + 1
+        if log.user_id not in latest_by_student:
+            latest_by_student[log.user_id] = log
 
-    # get top 5 most common symptoms
-    common_symptoms = sorted(
+    # 3) Fetch user info
+    users = session.exec(select(User).where(User.id.in_(student_ids))).all()
+    user_by_id = {u.id: u for u in users}
+
+    # 4) Compute health status
+    now = datetime.now(timezone.utc)
+    SICK_DAYS = 7  # consider "sick" if last log is within 7 days
+
+    students_health: list[StudentHealth] = []
+    severities: list[int] = []
+    symptom_freq: dict[str, int] = {}
+
+    for sid in student_ids:
+        user = user_by_id.get(sid)
+        latest = latest_by_student.get(sid)
+
+        is_sick = False
+        latest_symptoms = None
+        latest_severity = None
+        latest_created_at = None
+
+        if latest:
+            latest_created_at = latest.created_at
+            latest_symptoms = latest.symptoms
+            latest_severity = latest.severity
+
+            # Normalize created_at to be timezone-aware (UTC)
+            created_at = latest.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+
+            # "sick" if recent
+            if (now - created_at).days < SICK_DAYS:
+                is_sick = True
+                severities.append(latest.severity)
+                for word in latest.symptoms.replace(",", " ").split():
+                    w = word.strip().lower()
+                    if w:
+                        symptom_freq[w] = symptom_freq.get(w, 0) + 1
+
+        students_health.append(
+            StudentHealth(
+                student_id=sid,
+                full_name=user.full_name if user else None,
+                email=user.email if user else "unknown",
+                is_sick=is_sick,
+                latest_symptoms=latest_symptoms,
+                latest_severity=latest_severity,
+                latest_created_at=latest_created_at,
+            )
+        )
+
+    if not students_health:
+        return SummaryResponse(
+            available=False,
+            message="No illness reports yet for this class.",
+            students=[],
+        )
+
+    # Aggregated stats: only for sick students
+    sick_students = [s for s in students_health if s.is_sick]
+    count = len(sick_students)
+    avg_severity = (
+        sum(severities) / len(severities) if severities else None
+    )
+
+    common_symptoms_sorted = sorted(
         symptom_freq.items(), key=lambda x: x[1], reverse=True
     )[:5]
-    common_symptoms_list = [symptom for symptom, _ in common_symptoms]
+    common_symptoms_list = [symptom for symptom, _ in common_symptoms_sorted] or None
 
     return SummaryResponse(
         available=True,
-        count=total_count,
-        avg_severity=round(avg_severity, 2),
+        count=count,
+        avg_severity=round(avg_severity, 2) if avg_severity is not None else None,
         common_symptoms=common_symptoms_list,
-        message="Class health summary generated successfully"
+        message="Class health summary generated successfully",
+        students=students_health,
     )
 
 
@@ -174,3 +253,42 @@ def login(payload: LoginRequest, session: Session = Depends(get_session)):
         role=user.role,
         token=token,
     )
+
+@app.post("/api/professors/{professor_id}/students")
+def add_student_to_professor(
+    professor_id: int,
+    payload: AddStudentRequest,
+    session: Session = Depends(get_session),
+):
+    # Find the student user by email
+    student = session.exec(
+        select(User).where(User.email == payload.student_email)
+    ).first()
+
+    if not student:
+        raise HTTPException(status_code=404, detail="Student user not found")
+
+    # Prevent duplicates
+    existing = session.exec(
+        select(ClassEnrollment).where(
+            ClassEnrollment.professor_id == professor_id,
+            ClassEnrollment.student_id == student.id,
+        )
+    ).first()
+    if existing:
+        return {"message": "Student already in roster"}
+
+    enrollment = ClassEnrollment(
+        professor_id=professor_id,
+        student_id=student.id,
+    )
+    session.add(enrollment)
+    session.commit()
+    session.refresh(enrollment)
+
+    return {
+        "message": "Student added to class",
+        "enrollment_id": enrollment.id,
+        "student_id": student.id,
+        "student_email": student.email,
+    }

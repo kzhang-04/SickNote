@@ -2,12 +2,23 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { API_BASE_URL } from "../api/config";
 
+type StudentHealth = {
+    student_id: number;
+    full_name?: string | null;
+    email: string;
+    is_sick: boolean;
+    latest_symptoms?: string | null;
+    latest_severity?: number | null;
+    latest_created_at?: string | null;
+};
+
 type SummaryData = {
     available: boolean;
     count?: number;
     avg_severity?: number;
     common_symptoms?: string[];
     message?: string;
+    students?: StudentHealth[];
 };
 
 const ClassSummary = () => {
@@ -99,75 +110,116 @@ const ClassSummary = () => {
                             {summary.message || "No summary data available yet."}
                         </p>
                         <p className="text-sm text-muted-foreground mt-2">
-                            Summary will be available once sufficient reports are submitted
-                            (minimum 10 for privacy protection).
+                            The summary will appear once there are illness reports for this class.
                         </p>
                     </div>
                 )}
 
                 {!loading && !error && summary && summary.available && (
                     <div className="space-y-6">
+                        {/* High-level cards, now about sick students */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Total Reports Card */}
                             <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                                 <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-2">
-                                    Total Reports
+                                    Sick Students
                                 </h3>
                                 <p className="text-4xl font-bold text-foreground">
-                                    {summary.count}
+                                    {summary.count ?? 0}
                                 </p>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                    Students reported illness
+                                    Students currently marked as sick (last 7 days)
                                 </p>
                             </div>
 
-                            {/* Average Severity Card */}
                             <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                                 <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-2">
                                     Average Severity
                                 </h3>
                                 <p className="text-4xl font-bold text-foreground">
-                                    {summary.avg_severity}/5
+                                    {summary.avg_severity ?? "-"}
+                                    {summary.avg_severity != null && "/5"}
                                 </p>
                                 <p className="text-sm text-muted-foreground mt-1">
-                                    {summary.avg_severity && summary.avg_severity < 2
-                                        ? "Mild"
-                                        : summary.avg_severity && summary.avg_severity < 4
-                                            ? "Moderate"
-                                            : "Severe"}
+                                    {summary.avg_severity == null
+                                        ? "No recent illness reports"
+                                        : summary.avg_severity < 2
+                                            ? "Overall mild"
+                                            : summary.avg_severity < 4
+                                                ? "Overall moderate"
+                                                : "Overall severe"}
                                 </p>
                             </div>
                         </div>
+                        
 
-                        {/* Common Symptoms Card */}
+                        {/* NEW: Per-student table */}
                         <div className="bg-card p-6 rounded-lg border border-border shadow-sm">
                             <h3 className="text-lg font-semibold text-foreground mb-4">
-                                Most Common Symptoms
+                                Student Health Status
                             </h3>
-                            {summary.common_symptoms && summary.common_symptoms.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {summary.common_symptoms.map((symptom, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium"
-                                        >
-                                            {symptom}
-                                        </span>
-                                    ))}
+
+                            {summary.students && summary.students.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full text-sm">
+                                        <thead>
+                                        <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+                                            <th className="py-2 pr-4">Name</th>
+                                            <th className="py-2 pr-4">Email</th>
+                                            <th className="py-2 pr-4">Status</th>
+                                            <th className="py-2 pr-4">Latest Symptoms</th>
+                                            <th className="py-2 pr-4">Severity</th>
+                                            <th className="py-2 pr-4">Last Updated</th>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        {summary.students.map((s) => {
+                                            const statusLabel = s.is_sick ? "Sick" : "Healthy";
+                                            const statusClasses = s.is_sick
+                                                ? "text-red-600 bg-red-50 border-red-100"
+                                                : "text-emerald-600 bg-emerald-50 border-emerald-100";
+
+                                            return (
+                                                <tr
+                                                    key={s.student_id}
+                                                    className="border-b border-border/60 last:border-0"
+                                                >
+                                                    <td className="py-2 pr-4">
+                                                        {s.full_name ?? "(No name)"}
+                                                    </td>
+                                                    <td className="py-2 pr-4 text-muted-foreground">
+                                                        {s.email}
+                                                    </td>
+                                                    <td className="py-2 pr-4">
+                                            <span
+                                                className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-medium ${statusClasses}`}
+                                            >
+                                                {statusLabel}
+                                            </span>
+                                                    </td>
+                                                    <td className="py-2 pr-4">
+                                                        {s.latest_symptoms ?? "—"}
+                                                    </td>
+                                                    <td className="py-2 pr-4">
+                                                        {s.latest_severity ?? "—"}
+                                                    </td>
+                                                    <td className="py-2 pr-4 text-muted-foreground">
+                                                        {s.latest_created_at
+                                                            ? new Date(s.latest_created_at).toLocaleString()
+                                                            : "—"}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             ) : (
-                                <p className="text-muted-foreground">No symptom data available</p>
+                                <p className="text-muted-foreground">
+                                    No students or health data yet for this class.
+                                </p>
                             )}
                         </div>
 
-                        {/* Info Note */}
-                        <div className="bg-muted/50 p-4 rounded-lg border border-border">
-                            <p className="text-sm text-muted-foreground">
-                                <strong>Note:</strong> This data is anonymized and aggregated to
-                                protect student privacy. Individual student information is not
-                                displayed.
-                            </p>
-                        </div>
                     </div>
                 )}
             </div>
