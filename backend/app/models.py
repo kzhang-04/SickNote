@@ -52,6 +52,10 @@ class FriendRead(SQLModel):
     friend_name: str
     friend_email: str
 
+class FriendCreate(SQLModel):
+    friend_name: str
+    friend_email: EmailStr
+
 class NotifyRequest(SQLModel):
     friend_ids: List[int]
 

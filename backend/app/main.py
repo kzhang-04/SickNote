@@ -7,7 +7,7 @@ from .db import init_db, get_session, create_illness_log
 from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
                       SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse,
                       ClassEnrollment, AddStudentRequest, StudentHealth,
-                      ClassRead, Class, ClassCreate, JoinClassRequest)
+                      ClassRead, Class, ClassCreate, JoinClassRequest, FriendCreate)
 from .notifications import send_email
 from .security import authenticate_user, create_access_token
 
@@ -86,6 +86,24 @@ def get_friends(session: Session = Depends(get_session)):
     # We return Friend objects; FastAPI will convert them to FriendRead
     return friends
 
+@app.post("/friends", response_model=FriendRead, status_code=status.HTTP_201_CREATED)
+def create_friend(
+    payload: FriendCreate,
+    session: Session = Depends(get_session),
+):
+    # For now, same hard-coded owner as GET
+    owner_user_id = 1
+
+    friend = Friend(
+        owner_user_id=owner_user_id,
+        friend_name=payload.friend_name,
+        friend_email=payload.friend_email,
+    )
+    session.add(friend)
+    session.commit()
+    session.refresh(friend)
+    return friend
+
 
 @app.post("/notify-friends")
 def notify_friends(
@@ -119,6 +137,23 @@ def notify_friends(
         "notified_count": len(friends)
     }
 
+@app.delete("/friends/{friend_id}")
+def delete_friend(friend_id: int, session: Session = Depends(get_session)):
+    owner_user_id = 1  # same fake logged-in user
+
+    friend = session.exec(
+        select(Friend).where(
+            Friend.id == friend_id,
+            Friend.owner_user_id == owner_user_id,
+        )
+    ).first()
+
+    if not friend:
+        raise HTTPException(status_code=404, detail="Friend not found")
+
+    session.delete(friend)
+    session.commit()
+    return {"message": "Friend deleted"}
 
 @app.get("/api/classes/{class_id}/summary", response_model=SummaryResponse)
 def get_class_summary(class_id: int, session: Session = Depends(get_session)):
