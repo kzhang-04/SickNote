@@ -47,7 +47,7 @@ const ClassSummary = () => {
                 setLoading(true);
                 setError(null);
 
-                const res = await fetch(`${API_BASE_URL}/api/professor/classes`);
+                const res = await fetch(`${API_BASE_URL}/api/professors/2/classes`);
                 if (!res.ok) {
                     throw new Error(`Failed to load classes (status ${res.status})`);
                 }

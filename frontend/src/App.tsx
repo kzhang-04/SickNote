@@ -1,3 +1,4 @@
+// src/App.tsx
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
@@ -13,6 +14,7 @@ import NotFound from "./pages/NotFound";
 
 import LoginPage from "./pages/LoginPage";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import AddClass from "./pages/AddClass";
 
 const queryClient = new QueryClient();
 
@@ -20,11 +22,9 @@ const AuthedApp = () => {
     const { token } = useAuth();
 
     if (!token) {
-        // Not authenticated, show login full-screen
         return <LoginPage />;
     }
 
-    // Authenticated: show nav + routes
     return (
         <>
             <Navigation />
@@ -36,7 +36,8 @@ const AuthedApp = () => {
                 <Route path="/friends" element={<Friends />} />
                 <Route path="/notify-friends" element={<NotifyFriends />} />
                 <Route path="/class-summary" element={<ClassSummary />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                {/* 👇 New route */}
+                <Route path="/add-class" element={<AddClass />} />
                 <Route path="*" element={<NotFound />} />
             </Routes>
         </>

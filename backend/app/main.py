@@ -7,7 +7,7 @@ from .db import init_db, get_session, create_illness_log
 from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
                       SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse,
                       ClassEnrollment, AddStudentRequest, StudentHealth,
-                      ClassRead, Class)
+                      ClassRead, Class, ClassCreate)
 from .notifications import send_email
 from .security import authenticate_user, create_access_token
 
@@ -251,18 +251,39 @@ def login(payload: LoginRequest, session: Session = Depends(get_session)):
     )
 
 
-@app.get("/api/professor/classes", response_model=list[ClassRead])
-def get_professor_classes(session: Session = Depends(get_session)):
-    # TODO later: use current_user.id from token
-    professor_id = 2  # for now, we know professor@example.com has id=2
-
+@app.get("/api/professors/{professor_id}/classes", response_model=list[ClassRead])
+def get_professor_classes(
+    professor_id: int,
+    session: Session = Depends(get_session),
+):
     classes = session.exec(
         select(Class).where(Class.professor_id == professor_id)
     ).all()
     return classes
 
+@app.post(
+    "/api/professors/{professor_id}/classes",
+    response_model=ClassRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_professor_class(
+    professor_id: int,
+    payload: ClassCreate,
+    session: Session = Depends(get_session),
+):
+    # later you can assert that professor_id == current_user.id
+    new_class = Class(
+        name=payload.name,
+        code=payload.code,
+        professor_id=professor_id,
+    )
+    session.add(new_class)
+    session.commit()
+    session.refresh(new_class)
+    return new_class
 
-@app.post("/{class_id}/students")
+
+@app.post("/api/classes/{class_id}/students")
 def add_student_to_class(
     class_id: int,
     payload: AddStudentRequest,
@@ -310,3 +331,25 @@ def add_student_to_class(
         "class_id": clazz.id,
         "class_name": clazz.name,
     }
+
+@app.delete("/api/professors/{professor_id}/classes/{class_id}")
+def delete_class(
+    professor_id: int,
+    class_id: int,
+    session: Session = Depends(get_session),
+):
+    # Only allow deleting classes that belong to this professor
+    clazz = session.exec(
+        select(Class).where(
+            Class.id == class_id,
+            Class.professor_id == professor_id,
+        )
+    ).first()
+
+    if not clazz:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    session.delete(clazz)
+    session.commit()
+
+    return {"message": "Class deleted"}

@@ -73,6 +73,10 @@ class ClassRead(SQLModel):
     name: str
     code: Optional[str] = None
 
+class ClassCreate(SQLModel):
+    name: str
+    code: Optional[str] = None
+
 class StudentHealth(SQLModel):
     student_id: int
     full_name: Optional[str] = None
