@@ -133,3 +133,9 @@ class LoginResponse(SQLModel):
     full_name: Optional[str] = None
     role: str
     token: str
+
+class JoinClassRequest(SQLModel):
+    student_id: int
+    code: str
+
+

@@ -128,7 +128,7 @@ const AddClass = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-foreground mb-1">
-                            Class Code (optional)
+                            Class Code
                         </label>
                         <input
                             type="text"

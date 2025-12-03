@@ -7,7 +7,7 @@ from .db import init_db, get_session, create_illness_log
 from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
                       SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse,
                       ClassEnrollment, AddStudentRequest, StudentHealth,
-                      ClassRead, Class, ClassCreate)
+                      ClassRead, Class, ClassCreate, JoinClassRequest)
 from .notifications import send_email
 from .security import authenticate_user, create_access_token
 
@@ -353,3 +353,92 @@ def delete_class(
     session.commit()
 
     return {"message": "Class deleted"}
+
+@app.get("/api/students/{student_id}/classes", response_model=list[ClassRead])
+def get_student_classes(student_id: int, session: Session = Depends(get_session)):
+    # Find all enrollments for this student
+    enrollments = session.exec(
+        select(ClassEnrollment).where(ClassEnrollment.student_id == student_id)
+    ).all()
+
+    if not enrollments:
+        return []
+
+    class_ids = [e.class_id for e in enrollments]
+
+    # Fetch those classes
+    classes = session.exec(
+        select(Class).where(Class.id.in_(class_ids))
+    ).all()
+
+    return classes
+
+
+@app.post("/api/students/{student_id}/join-class")
+def join_class_by_code(
+    student_id: int,
+    payload: JoinClassRequest,
+    session: Session = Depends(get_session),
+):
+    # 1) Find class by code
+    clazz = session.exec(
+        select(Class).where(Class.code == payload.code)
+    ).first()
+
+    if not clazz:
+        raise HTTPException(status_code=404, detail="Class with this code not found")
+
+    # 2) Prevent duplicate enrollment
+    existing = session.exec(
+        select(ClassEnrollment).where(
+            ClassEnrollment.class_id == clazz.id,
+            ClassEnrollment.student_id == student_id,
+        )
+    ).first()
+
+    if existing:
+        return {
+            "message": "You are already enrolled in this class",
+            "class_id": clazz.id,
+            "class_name": clazz.name,
+        }
+
+    # 3) Create enrollment
+    enrollment = ClassEnrollment(
+        class_id=clazz.id,
+        student_id=student_id,
+    )
+    session.add(enrollment)
+    session.commit()
+    session.refresh(enrollment)
+
+    return {
+        "message": "Successfully joined class",
+        "class_id": clazz.id,
+        "class_name": clazz.name,
+        "enrollment_id": enrollment.id,
+    }
+
+@app.delete("/api/classes/{class_id}/students/{student_id}")
+def leave_class(
+    class_id: int,
+    student_id: int,
+    session: Session = Depends(get_session),
+):
+    """
+    Remove a student's enrollment from a class.
+    """
+    enrollment = session.exec(
+        select(ClassEnrollment).where(
+            ClassEnrollment.class_id == class_id,
+            ClassEnrollment.student_id == student_id,
+        )
+    ).first()
+
+    if not enrollment:
+        raise HTTPException(status_code=404, detail="Student is not enrolled in this class")
+
+    session.delete(enrollment)
+    session.commit()
+
+    return {"message": "Student removed from class", "class_id": class_id, "student_id": student_id}

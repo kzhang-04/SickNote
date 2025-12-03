@@ -3,18 +3,30 @@ import { NavLink } from "./NavLink";
 import { useAuth } from "../auth/AuthContext";
 
 const Navigation = () => {
-    const { logout } = useAuth();
+    const { logout, userRole } = useAuth();
 
     const navItems = [
         { name: "Settings", path: "/settings", icon: Settings },
-        { name: "Classes", path: "/classes", icon: Users },
+
+        // Student-only
+        ...(userRole === "student"
+            ? [{ name: "Classes", path: "/classes", icon: Users }]
+            : []),
+
         { name: "Log", path: "/", icon: FileText },
         { name: "History", path: "/history", icon: History },
         { name: "Friends", path: "/friends", icon: UserPlus },
         { name: "Notify Friends", path: "/notify-friends", icon: Bell },
-        { name: "Class Summary", path: "/class-summary", icon: Users },
-        { name: "Add a New Class", path: "/add-class", icon: Users },
+
+        // Professor-only
+        ...(userRole === "professor"
+            ? [
+                { name: "Class Summary", path: "/class-summary", icon: Users },
+                { name: "Add a New Class", path: "/add-class", icon: Users },
+            ]
+            : []),
     ];
+
 
     return (
         <nav className="bg-card border-b border-border shadow-sm">
