@@ -7,7 +7,7 @@ from .db import init_db, get_session, create_illness_log
 from .models import ( LogCreate, LogRead, Friend, FriendRead, NotifyRequest,
                       SummaryResponse, IllnessLog, User, LoginRequest, LoginResponse,
                       ClassEnrollment, AddStudentRequest, StudentHealth,
-                      ClassRead, Class, ClassCreate, JoinClassRequest, FriendCreate)
+                      ClassRead, Class, ClassCreate, JoinClassRequest, FriendCreate, PrivacyUpdate, PrivacyRead)
 from .notifications import send_email
 from .security import authenticate_user, create_access_token
 
@@ -303,6 +303,43 @@ def get_class_summary(class_id: int, session: Session = Depends(get_session)):
         students=students_health,
     )
 
+@app.get("/api/settings/privacy", response_model=PrivacyRead)
+def get_privacy_setting(session: Session = Depends(get_session)):
+    current_user_id = 1
+
+    user = session.exec(
+        select(User).where(User.id == current_user_id)
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return PrivacyRead(notification_privacy=user.notification_privacy)
+
+@app.post("/api/settings/privacy")
+def update_privacy_setting(
+        payload: PrivacyUpdate,
+        session: Session = Depends(get_session),
+):
+    current_user_id = 1
+
+    allowed_settings = ["everyone", "friends", "professors"]
+    if payload.notification_privacy not in allowed_settings:
+        raise HTTPException(status_code=400, detail=f"Invalid privacy setting. Must be one of: {', '.join(allowed_settings)}")
+
+    user = session.exec(
+        select(User).where(User.id == current_user_id)
+    ).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found (ID 1 missing)")
+
+    user.notification_privacy = payload.notification_privacy
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    return {"message": "Notification privacy updated successfully", "setting": user.notification_privacy}
 
 # Auth
 @app.post("/auth/login", response_model=LoginResponse)
