@@ -8,10 +8,10 @@ type ClassItem = {
     code?: string | null;
 };
 
-const CURRENT_STUDENT_ID = 1; // TODO: replace with real logged-in user id
+type PrivacyOption = "everyone" | "friends" | "professors";
 
 const Classes = () => {
-    const { userRole } = useAuth();
+    const { userRole, userId, token } = useAuth();
 
     // ---- state ----
     const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -25,14 +25,25 @@ const Classes = () => {
     const [leavingId, setLeavingId] = useState<number | null>(null);
     const [leaveMessage, setLeaveMessage] = useState<string | null>(null);
 
+    // 🔒 privacy-related state
+    const [privacy, setPrivacy] = useState<PrivacyOption | null>(null);
+    const [privacyError, setPrivacyError] = useState<string | null>(null);
+
     // ---- fetch enrolled classes ----
     const fetchClasses = async () => {
+        if (!userId || userRole !== "student") return;
+
         try {
             setLoading(true);
             setError(null);
 
             const res = await fetch(
-                `${API_BASE_URL}/api/students/${CURRENT_STUDENT_ID}/classes`
+                `${API_BASE_URL}/api/students/${userId}/classes`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
             );
 
             if (!res.ok) {
@@ -52,9 +63,105 @@ const Classes = () => {
         }
     };
 
+    const fetchPrivacy = async () => {
+        if (!token) return;
+
+        try {
+            setPrivacyError(null);
+            const res = await fetch(`${API_BASE_URL}/api/settings/privacy`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            if (!res.ok) {
+                throw new Error(
+                    `Failed to load privacy settings (status ${res.status})`
+                );
+            }
+
+            const data = await res.json();
+            setPrivacy(data.notification_privacy as PrivacyOption);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setPrivacyError(err.message);
+            } else {
+                setPrivacyError("Failed to load privacy settings.");
+            }
+        }
+    };
+
     useEffect(() => {
         void fetchClasses();
-    }, []);
+        void fetchPrivacy();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId, userRole, token]);
+
+    // ---- professor view: just explanation ----
+    if (userRole === "professor") {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">
+                        My Classes
+                    </h1>
+                    <div className="bg-card p-6 rounded-lg border border-border">
+                        <p className="text-sm text-muted-foreground">
+                            This page is intended for{" "}
+                            <span className="font-semibold">students</span> to see and join the
+                            classes they’re enrolled in.
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            As a professor, you can create and manage classes in the{" "}
+                            <span className="font-semibold">&quot;Add a New Class&quot;</span>{" "}
+                            tab and view aggregated health data in{" "}
+                            <span className="font-semibold">&quot;Class Summary&quot;</span>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // While auth is still loading
+    if (!userId) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">Loading your account…</p>
+            </div>
+        );
+    }
+
+    // 🔒 student view disabled when privacy = "friends"
+    if (privacy === "friends") {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">
+                        My Classes
+                    </h1>
+
+                    {privacyError && (
+                        <p className="text-sm text-red-600 mb-3">
+                            Privacy settings error: {privacyError}
+                        </p>
+                    )}
+
+                    <div className="bg-card p-6 rounded-lg border border-border">
+                        <p className="text-sm text-muted-foreground">
+                            Your notification privacy is set to{" "}
+                            <span className="font-semibold">Friends Only</span>. Class
+                            enrollment features are currently disabled.
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            You can change this in the <span className="font-semibold">Settings</span>{" "}
+                            page if you want to join or leave classes here.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // ---- join class handler ----
     const handleJoin = async (e: FormEvent<HTMLFormElement>) => {
@@ -71,12 +178,15 @@ const Classes = () => {
             setJoining(true);
 
             const res = await fetch(
-                `${API_BASE_URL}/api/students/${CURRENT_STUDENT_ID}/join-class`,
+                `${API_BASE_URL}/api/students/${userId}/join-class`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
                     body: JSON.stringify({
-                        student_id: CURRENT_STUDENT_ID,      // still fine to send
+                        student_id: userId,
                         code: joinCode.trim(),
                     }),
                 }
@@ -98,7 +208,6 @@ const Classes = () => {
                 `Joined class "${data.class_name ?? data.name ?? "Unknown"}"!`
             );
             setJoinCode("");
-            // refresh enrolled classes list
             void fetchClasses();
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -118,9 +227,12 @@ const Classes = () => {
             setLeavingId(classId);
 
             const res = await fetch(
-                `${API_BASE_URL}/api/classes/${classId}/students/${CURRENT_STUDENT_ID}`,
+                `${API_BASE_URL}/api/classes/${classId}/students/${userId}`,
                 {
                     method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 }
             );
 
@@ -136,7 +248,6 @@ const Classes = () => {
             }
 
             setLeaveMessage("You left the class successfully.");
-            // refresh list
             void fetchClasses();
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -149,39 +260,26 @@ const Classes = () => {
         }
     };
 
-    // ---- professor view: just explanation ----
-    if (userRole === "professor") {
-        return (
-            <div className="min-h-screen bg-background">
-                <div className="container mx-auto px-4 py-8 max-w-2xl">
-                    <h1 className="text-3xl font-bold text-foreground mb-4">My Classes</h1>
-                    <div className="bg-card p-6 rounded-lg border border-border">
-                        <p className="text-sm text-muted-foreground">
-                            This page is intended for{" "}
-                            <span className="font-semibold">students</span> to see and join the
-                            classes they’re enrolled in.
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                            As a professor, you can create and manage classes in the{" "}
-                            <span className="font-semibold">&quot;Add a New Class&quot;</span>{" "}
-                            tab and view aggregated health data in{" "}
-                            <span className="font-semibold">&quot;Class Summary&quot;</span>.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    // ---- student view ----
+    // ---- student view (normal) ----
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 max-w-3xl space-y-8">
                 <h1 className="text-3xl font-bold text-foreground mb-2">My Classes</h1>
-                <p className="text-sm text-muted-foreground mb-4">
+                <p className="text-sm text-muted-foreground mb-1">
                     Join a class with a code from your professor, and see the list of
                     classes you&apos;re currently enrolled in.
                 </p>
+
+                {privacyError && (
+                    <p className="text-xs text-red-600 mb-2">
+                        Privacy settings error: {privacyError}
+                    </p>
+                )}
+                {privacy && (
+                    <p className="text-xs text-muted-foreground mb-4">
+                        Current privacy: <span className="font-semibold">{privacy}</span>
+                    </p>
+                )}
 
                 {/* Join class form */}
                 <div className="bg-card p-6 rounded-lg border border-border shadow-sm">

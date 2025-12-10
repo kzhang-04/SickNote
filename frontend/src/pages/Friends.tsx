@@ -1,6 +1,7 @@
 // src/pages/Friends.tsx
 import { useEffect, useState, type FormEvent } from "react";
 import { API_BASE_URL } from "../api/config";
+import { useAuth } from "../auth/AuthContext";
 
 type Friend = {
     id: number;
@@ -9,6 +10,8 @@ type Friend = {
 };
 
 const Friends = () => {
+    const { token, userRole } = useAuth();
+
     const [friends, setFriends] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -24,11 +27,21 @@ const Friends = () => {
     const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
 
     const fetchFriends = async () => {
+        if (!token) {
+            setLoading(false);
+            setError("You must be logged in to view friends.");
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
 
-            const res = await fetch(`${API_BASE_URL}/friends`);
+            const res = await fetch(`${API_BASE_URL}/friends`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
 
             if (!res.ok) {
                 throw new Error(`Failed to load friends (status ${res.status})`);
@@ -49,12 +62,18 @@ const Friends = () => {
 
     useEffect(() => {
         void fetchFriends();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
 
     const handleAddFriend = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSaveMessage(null);
         setDeleteMessage(null);
+
+        if (!token) {
+            setSaveMessage("You must be logged in to add friends.");
+            return;
+        }
 
         if (!newName.trim() || !newEmail.trim()) {
             setSaveMessage("Please enter a name and an email.");
@@ -66,7 +85,10 @@ const Friends = () => {
 
             const res = await fetch(`${API_BASE_URL}/friends`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify({
                     friend_name: newName.trim(),
                     friend_email: newEmail.trim(),
@@ -105,11 +127,19 @@ const Friends = () => {
         setDeleteMessage(null);
         setSaveMessage(null);
 
+        if (!token) {
+            setDeleteMessage("You must be logged in to delete friends.");
+            return;
+        }
+
         try {
             setDeletingId(friendId);
 
             const res = await fetch(`${API_BASE_URL}/friends/${friendId}`, {
                 method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             });
 
             if (!res.ok) {
@@ -135,6 +165,30 @@ const Friends = () => {
             setDeletingId(null);
         }
     };
+
+    // Professors shouldn't really be here, but just in case:
+    if (userRole === "professor") {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">My Friends</h1>
+                    <div className="bg-card p-6 rounded-lg border border-border">
+                        <p className="text-sm text-muted-foreground">
+                            This page is intended for{" "}
+                            <span className="font-semibold">students</span> to manage the
+                            contacts that will be notified when they&apos;re sick.
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            As a professor, you can focus on{" "}
+                            <span className="font-semibold">&quot;Add a New Class&quot;</span>{" "}
+                            and <span className="font-semibold">&quot;Class Summary&quot;</span>{" "}
+                            in the navigation.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">

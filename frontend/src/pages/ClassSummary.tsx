@@ -23,7 +23,7 @@ type SummaryData = {
 };
 
 const ClassSummary = () => {
-    const { userRole } = useAuth();
+    const { userRole, userId, token } = useAuth();
 
     const [classes, setClasses] = useState<ClassItem[]>([]);
     const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -37,7 +37,7 @@ const ClassSummary = () => {
 
     // 1) Fetch classes for professor
     useEffect(() => {
-        if (!isProfessor) {
+        if (!isProfessor || !userId || !token) {
             setLoading(false);
             return;
         }
@@ -47,7 +47,15 @@ const ClassSummary = () => {
                 setLoading(true);
                 setError(null);
 
-                const res = await fetch(`${API_BASE_URL}/api/professors/2/classes`);
+                const res = await fetch(
+                    `${API_BASE_URL}/api/professors/${userId}/classes`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
                 if (!res.ok) {
                     throw new Error(`Failed to load classes (status ${res.status})`);
                 }
@@ -70,11 +78,11 @@ const ClassSummary = () => {
         };
 
         void fetchClasses();
-    }, [isProfessor, selectedClassId]);
+    }, [isProfessor, userId, token, selectedClassId]);
 
     // 2) Fetch summary when a class is selected
     useEffect(() => {
-        if (!isProfessor) return;
+        if (!isProfessor || !token) return;
         if (selectedClassId == null) return;
 
         const fetchSummary = async () => {
@@ -83,7 +91,12 @@ const ClassSummary = () => {
                 setError(null);
 
                 const res = await fetch(
-                    `${API_BASE_URL}/api/classes/${selectedClassId}/summary`
+                    `${API_BASE_URL}/api/classes/${selectedClassId}/summary`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
                 );
                 if (!res.ok) {
                     throw new Error(`Failed to load summary (status ${res.status})`);
@@ -103,7 +116,7 @@ const ClassSummary = () => {
         };
 
         void fetchSummary();
-    }, [isProfessor, selectedClassId]);
+    }, [isProfessor, selectedClassId, token]);
 
     // If not professor, show restricted view
     if (!isProfessor) {
@@ -121,6 +134,15 @@ const ClassSummary = () => {
                         </p>
                     </div>
                 </div>
+            </div>
+        );
+    }
+
+    // While auth is still resolving
+    if (!userId || !token) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">Loading your account…</p>
             </div>
         );
     }
@@ -163,8 +185,7 @@ const ClassSummary = () => {
                 {!currentClass && (
                     <div className="bg-card p-6 rounded-lg border border-border">
                         <p className="text-muted-foreground">
-                            You don’t have any classes yet. Use the backend endpoint or seed
-                            script to create a class and enroll students.
+                            You don’t have any classes yet.
                         </p>
                     </div>
                 )}
@@ -213,7 +234,7 @@ const ClassSummary = () => {
                                             {summary.count ?? 0}
                                         </p>
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            Students currently marked as sick (last 7 days)
+                                            Students currently marked as sick
                                         </p>
                                     </div>
 
@@ -331,14 +352,6 @@ const ClassSummary = () => {
                                     )}
                                 </div>
 
-                                {/* Info Note */}
-                                <div className="bg-muted/50 p-4 rounded-lg border border-border">
-                                    <p className="text-sm text-muted-foreground">
-                                        <strong>Note:</strong> This data is limited to your
-                                        selected class roster. Individual student data is
-                                        visible only to you as the course instructor.
-                                    </p>
-                                </div>
                             </div>
                         )}
                     </>

@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { API_BASE_URL } from "../api/config";
+import { useAuth } from "../auth/AuthContext";
 
 type Friend = {
     id: number;
@@ -10,9 +12,11 @@ type NotifyResponse = {
     notified_count: number;
 };
 
-const API_BASE_URL = "http://127.0.0.1:8000"; // backend
+type PrivacyOption = "everyone" | "friends" | "professors";
 
 const NotifyFriends = () => {
+    const { token, userRole } = useAuth();
+
     const [friends, setFriends] = useState<Friend[]>([]);
     const [loading, setLoading] = useState(true); // loading friends
     const [error, setError] = useState<string | null>(null);
@@ -20,13 +24,28 @@ const NotifyFriends = () => {
     const [sending, setSending] = useState(false); // sending notifications
     const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
+    // 🔒 Privacy-related state
+    const [privacy, setPrivacy] = useState<PrivacyOption | null>(null);
+    const [privacyError, setPrivacyError] = useState<string | null>(null);
+
     useEffect(() => {
+        // If not logged in, don't even try to call the backend
+        if (!token) {
+            setLoading(false);
+            setError("You must be logged in to view and notify friends.");
+            return;
+        }
+
         const fetchFriends = async () => {
             try {
                 setLoading(true);
                 setError(null);
 
-                const res = await fetch(`${API_BASE_URL}/friends`);
+                const res = await fetch(`${API_BASE_URL}/friends`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
                 if (!res.ok) {
                     throw new Error(`Failed to load friends (status ${res.status})`);
                 }
@@ -44,8 +63,36 @@ const NotifyFriends = () => {
             }
         };
 
+        const fetchPrivacy = async () => {
+            try {
+                setPrivacyError(null);
+                const res = await fetch(`${API_BASE_URL}/api/settings/privacy`, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (!res.ok) {
+                    throw new Error(
+                        `Failed to load privacy settings (status ${res.status})`
+                    );
+                }
+
+                const data = await res.json();
+                // backend returns: { notification_privacy: "friends" | "everyone" | "professors" }
+                setPrivacy(data.notification_privacy as PrivacyOption);
+            } catch (err: unknown) {
+                if (err instanceof Error) {
+                    setPrivacyError(err.message);
+                } else {
+                    setPrivacyError("Failed to load privacy settings.");
+                }
+            }
+        };
+
         void fetchFriends();
-    }, []);
+        void fetchPrivacy();
+    }, [token]);
 
     const toggleFriend = (id: number) => {
         setSelectedIds((prev) =>
@@ -54,27 +101,50 @@ const NotifyFriends = () => {
     };
 
     const handleSendNotifications = async () => {
+        setError(null);
+        setNotifyMessage(null);
+
+        if (!token) {
+            setError("You must be logged in to notify friends.");
+            return;
+        }
+
+        // 🔒 Frontend guard: block if privacy is professors-only
+        if (privacy === "professors") {
+            setError(
+                "Your notification privacy is set to 'Professors Only', so you cannot notify friends."
+            );
+            return;
+        }
+
         if (selectedIds.length === 0) {
             setError("Please select at least one friend.");
-            setNotifyMessage(null);
             return;
         }
 
         try {
             setSending(true);
-            setError(null);
-            setNotifyMessage(null);
 
             const res = await fetch(`${API_BASE_URL}/notify-friends`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({ friend_ids: selectedIds }),
             });
 
             if (!res.ok) {
-                throw new Error(`Failed to send notifications (status ${res.status})`);
+                let msg = `Failed to send notifications (status ${res.status})`;
+                try {
+                    const data = await res.json();
+                    if (data.detail) {
+                        msg = data.detail;
+                    }
+                } catch {
+                    // ignore JSON parse errors
+                }
+                throw new Error(msg);
             }
 
             const data: NotifyResponse = await res.json();
@@ -92,12 +162,63 @@ const NotifyFriends = () => {
         }
     };
 
+    const notificationsDisabled =
+        privacy === "professors" || privacy === null; // null while loading privacy
+
+    // Restrict this page to students; professors don’t need to notify friends
+    if (userRole === "professor") {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">
+                        Notify Friends
+                    </h1>
+                    <div className="bg-card p-6 rounded-lg border border-border">
+                        <p className="text-foreground font-semibold">Access restricted</p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            The &quot;Notify Friends&quot; feature is designed for{" "}
+                            <span className="font-semibold">students</span> to email their
+                            personal contacts when they&apos;re sick. As a professor, you can
+                            instead view aggregated health information for your classes in the{" "}
+                            <span className="font-semibold">&quot;Class Summary&quot;</span> tab.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 max-w-xl">
                 <h1 className="text-3xl font-bold text-foreground mb-4">
                     Notify Friends
                 </h1>
+
+                {!token && (
+                    <p className="text-red-600 text-sm mb-4">
+                        You must be logged in to view and notify friends.
+                    </p>
+                )}
+
+                {/* Privacy info */}
+                {privacyError && (
+                    <p className="text-red-600 text-sm mb-2">
+                        Privacy settings error: {privacyError}
+                    </p>
+                )}
+                {privacy && !privacyError && (
+                    <p className="text-sm text-muted-foreground mb-4">
+                        Current privacy:{" "}
+                        <span className="font-semibold">
+                            {privacy === "everyone"
+                                ? "Everyone (Friends & Professors)"
+                                : privacy === "friends"
+                                    ? "Friends Only"
+                                    : "Professors Only"}
+                        </span>
+                    </p>
+                )}
 
                 {loading && <p>Loading friends...</p>}
 
@@ -123,14 +244,15 @@ const NotifyFriends = () => {
                                             type="checkbox"
                                             checked={selectedIds.includes(friend.id)}
                                             onChange={() => toggleFriend(friend.id)}
+                                            disabled={notificationsDisabled || !token}
                                         />
                                         <div className="flex flex-col">
-                      <span className="font-semibold">
-                        {friend.friend_name}
-                      </span>
+                                            <span className="font-semibold">
+                                                {friend.friend_name}
+                                            </span>
                                             <span className="text-sm text-muted-foreground">
-                        {friend.friend_email}
-                      </span>
+                                                {friend.friend_email}
+                                            </span>
                                         </div>
                                     </li>
                                 ))}
@@ -140,11 +262,32 @@ const NotifyFriends = () => {
                         <button
                             type="button"
                             onClick={handleSendNotifications}
-                            disabled={sending || loading || friends.length === 0}
+                            disabled={
+                                sending ||
+                                loading ||
+                                friends.length === 0 ||
+                                notificationsDisabled ||
+                                !token
+                            }
                             className="px-4 py-2 rounded bg-primary text-primary-foreground disabled:opacity-50"
                         >
-                            {sending ? "Sending..." : "Send Notifications"}
+                            {!token
+                                ? "Log in to Notify Friends"
+                                : notificationsDisabled
+                                    ? "Notifications Disabled by Privacy Settings"
+                                    : sending
+                                        ? "Sending..."
+                                        : "Send Notifications"}
                         </button>
+
+                        {/* Message if disabled due to professors-only */}
+                        {privacy === "professors" && (
+                            <p className="text-sm text-red-600 mt-2">
+                                Your privacy is set to <strong>Professors Only</strong>, so
+                                friends cannot be notified. You can change this in the{" "}
+                                <strong>Settings</strong> page.
+                            </p>
+                        )}
 
                         {notifyMessage && (
                             <p className="text-sm text-green-600">{notifyMessage}</p>

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { API_BASE_URL } from "../api/config";
+import { useAuth } from "../auth/AuthContext";
 
 type ClassItem = {
     id: number;
@@ -7,9 +8,9 @@ type ClassItem = {
     code?: string | null;
 };
 
-const PROFESSOR_ID = 2; // for demo: professor@example.com has id=2
-
 const AddClass = () => {
+    const { userId, userRole, token } = useAuth();
+
     const [classes, setClasses] = useState<ClassItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -17,183 +18,152 @@ const AddClass = () => {
     const [name, setName] = useState("");
     const [code, setCode] = useState("");
 
-    // Load existing classes
+    // Fetch classes (must run before return)
     useEffect(() => {
+        if (!userId || userRole !== "professor") return;
+
         const fetchClasses = async () => {
             try {
                 setLoading(true);
-                setError(null);
-
                 const res = await fetch(
-                    `${API_BASE_URL}/api/professors/${PROFESSOR_ID}/classes`,
+                    `${API_BASE_URL}/api/professors/${userId}/classes`,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
                 );
-                if (!res.ok) {
-                    throw new Error(`Failed to load classes (status ${res.status})`);
-                }
 
-                const data: ClassItem[] = await res.json();
-                setClasses(data);
-            } catch (err: unknown) {
-                if (err instanceof Error) setError(err.message);
-                else setError("Failed to load classes.");
+                if (!res.ok) throw new Error("Failed to load classes");
+                setClasses(await res.json());
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Error loading classes");
             } finally {
                 setLoading(false);
             }
         };
 
         void fetchClasses();
-    }, []);
+    }, [userId, userRole, token]);
 
-    // Create a new class
+    // Block students AFTER hooks
+    if (userRole !== "professor") {
+        return (
+            <div className="min-h-screen flex items-center justify-center p-10">
+                <h2 className="text-xl text-muted-foreground">
+                    🔒 This page is only available for professors.
+                </h2>
+            </div>
+        );
+    }
+
+    // Create class
     const handleCreate = async (e: FormEvent) => {
         e.preventDefault();
         setError(null);
 
         try {
             const res = await fetch(
-                `${API_BASE_URL}/api/professors/${PROFESSOR_ID}/classes`,
+                `${API_BASE_URL}/api/professors/${userId}/classes`,
                 {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        name,
-                        code: code || null,
-                    }),
-                },
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ name, code: code || null }),
+                }
             );
 
-            if (!res.ok) {
-                throw new Error(`Failed to create class (status ${res.status})`);
-            }
-
+            if (!res.ok) throw new Error("Failed to create class");
             const created: ClassItem = await res.json();
-            setClasses((prev) => [...prev, created]);
+            setClasses(prev => [...prev, created]);
             setName("");
             setCode("");
-        } catch (err: unknown) {
-            if (err instanceof Error) setError(err.message);
-            else setError("Failed to create class.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Error creating class");
         }
     };
 
-    // Delete a class
+    // Delete class
     const handleDelete = async (classId: number) => {
-        setError(null);
-
         try {
             const res = await fetch(
-                `${API_BASE_URL}/api/professors/${PROFESSOR_ID}/classes/${classId}`,
+                `${API_BASE_URL}/api/professors/${userId}/classes/${classId}`,
                 {
                     method: "DELETE",
-                },
+                    headers: { Authorization: `Bearer ${token}` },
+                }
             );
 
-            if (!res.ok) {
-                throw new Error(`Failed to delete class (status ${res.status})`);
-            }
-
-            // Remove from local state
-            setClasses((prev) => prev.filter((c) => c.id !== classId));
-        } catch (err: unknown) {
-            if (err instanceof Error) setError(err.message);
-            else setError("Failed to delete class.");
+            if (!res.ok) throw new Error("Failed to delete class");
+            setClasses(prev => prev.filter(c => c.id !== classId));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Error deleting class");
         }
     };
 
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 max-w-4xl">
-                <h1 className="text-3xl font-bold text-foreground mb-6">
-                    Add a New Class
-                </h1>
+                <h1 className="text-3xl font-bold mb-6">Add a New Class</h1>
 
-                {/* Create class form */}
-                <form
-                    onSubmit={handleCreate}
-                    className="bg-card border border-border rounded-xl p-6 mb-8 space-y-4"
-                >
+                {/* Create form */}
+                <form onSubmit={handleCreate} className="bg-card p-6 rounded-lg space-y-4 border">
                     <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">
-                            Class Name
-                        </label>
+                        <label className="block mb-1">Class Name</label>
                         <input
                             type="text"
                             value={name}
-                            required
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                            placeholder="e.g. CS101 - Intro to Programming"
+                            required
+                            className="w-full border p-2 rounded"
+                            placeholder="CS101 - Intro to Programming"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-foreground mb-1">
-                            Class Code
-                        </label>
+                        <label className="block mb-1">Class Code (optional)</label>
                         <input
                             type="text"
                             value={code}
                             onChange={(e) => setCode(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-background border border-input rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                            placeholder="e.g. CS101 A1"
+                            className="w-full border p-2 rounded"
+                            placeholder="CS101-A1"
                         />
                     </div>
 
-                    {error && (
-                        <div className="text-destructive text-sm mb-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                            {error}
-                        </div>
-                    )}
+                    {error && <p className="text-red-500">{error}</p>}
 
-                    <button
-                        type="submit"
-                        className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-all"
-                    >
+                    <button type="submit" className="bg-primary text-white px-4 py-2 rounded">
                         Create Class
                     </button>
                 </form>
 
-                {/* Existing classes list */}
-                <div className="bg-card border border-border rounded-xl p-6">
-                    <h2 className="text-xl font-semibold text-foreground mb-4">
-                        Your Classes
-                    </h2>
+                {/* List existing classes */}
+                <div className="mt-8 bg-card p-6 rounded-lg border">
+                    <h2 className="text-xl font-semibold mb-3">Your Classes</h2>
 
-                    {loading ? (
-                        <p className="text-muted-foreground text-sm">
-                            Loading classes...
-                        </p>
-                    ) : classes.length === 0 ? (
-                        <p className="text-muted-foreground text-sm">
-                            You don&apos;t have any classes yet. Create one using the form
-                            above.
-                        </p>
-                    ) : (
-                        <ul className="space-y-2">
-                            {classes.map((clazz) => (
-                                <li
-                                    key={clazz.id}
-                                    className="flex items-center justify-between bg-background border border-border/60 rounded-lg px-4 py-3"
-                                >
-                                    <div>
-                                        <p className="font-medium text-foreground">{clazz.name}</p>
-                                        {clazz.code && (
-                                            <p className="text-xs text-muted-foreground mt-0.5">
-                                                {clazz.code}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => void handleDelete(clazz.id)}
-                                        className="text-xs px-3 py-1.5 rounded-full border border-destructive text-destructive hover:bg-destructive/10 transition-colors"
-                                    >
-                                        Delete
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+                    {loading ? <p>Loading...</p> :
+                        classes.length === 0 ? <p>No classes yet.</p> :
+                            <ul className="space-y-2">
+                                {classes.map(c => (
+                                    <li key={c.id} className="flex justify-between items-center border p-3 rounded">
+                                        <div>
+                                            <p className="font-medium">{c.name}</p>
+                                            {c.code && <p className="text-sm">Code: {c.code}</p>}
+                                        </div>
+
+                                        <button
+                                            onClick={() => handleDelete(c.id)}
+                                            className="text-red-500 border border-red-400 px-3 py-1 rounded"
+                                        >
+                                            Delete
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                    }
                 </div>
             </div>
         </div>

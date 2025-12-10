@@ -1,6 +1,7 @@
 // src/pages/History.tsx
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "../api/config";
+import { useAuth } from "../auth/AuthContext";
 
 type LogItem = {
     id: number;
@@ -11,6 +12,8 @@ type LogItem = {
 };
 
 const History = () => {
+    const { token, userRole } = useAuth();
+
     const [logs, setLogs] = useState<LogItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -19,11 +22,21 @@ const History = () => {
     const [deleteMessage, setDeleteMessage] = useState<string | null>(null);
 
     const fetchHistory = async () => {
+        if (!token) {
+            setLoading(false);
+            setError("You must be logged in to view your illness history.");
+            return;
+        }
+
         try {
             setLoading(true);
             setError(null);
 
-            const res = await fetch(`${API_BASE_URL}/api/reports`);
+            const res = await fetch(`${API_BASE_URL}/api/reports`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
 
             if (!res.ok) {
                 throw new Error(`Failed to load history (status ${res.status})`);
@@ -44,15 +57,25 @@ const History = () => {
 
     useEffect(() => {
         void fetchHistory();
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [token]);
 
     const deleteLog = async (logId: number) => {
         setDeleteMessage(null);
+
+        if (!token) {
+            setDeleteMessage("You must be logged in to delete entries.");
+            return;
+        }
+
         try {
             setDeletingId(logId);
 
             const res = await fetch(`${API_BASE_URL}/api/reports/${logId}`, {
                 method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
             });
 
             if (!res.ok) {
@@ -78,6 +101,29 @@ const History = () => {
             setDeletingId(null);
         }
     };
+
+    // Professors shouldn't see student illness history at all
+    if (userRole === "professor") {
+        return (
+            <div className="min-h-screen bg-background">
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">
+                        Illness History
+                    </h1>
+                    <div className="bg-card p-6 rounded-lg border border-border">
+                        <p className="text-foreground font-semibold">Access restricted</p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            The illness history page is intended for{" "}
+                            <span className="font-semibold">students</span> to review
+                            their own logs. As a professor, please use{" "}
+                            <span className="font-semibold">&quot;Class Summary&quot;</span>{" "}
+                            to see aggregated health information for your classes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">
@@ -153,17 +199,17 @@ const History = () => {
 
                                         <div className="mt-3 flex flex-wrap gap-4 text-sm">
                                             <div>
-                        <span className="text-xs uppercase text-muted-foreground">
-                          Severity
-                        </span>
+                                                <span className="text-xs uppercase text-muted-foreground">
+                                                    Severity
+                                                </span>
                                                 <p className="font-medium text-foreground">
                                                     {log.severity}/5
                                                 </p>
                                             </div>
                                             <div>
-                        <span className="text-xs uppercase text-muted-foreground">
-                          Expected Recovery
-                        </span>
+                                                <span className="text-xs uppercase text-muted-foreground">
+                                                    Expected Recovery
+                                                </span>
                                                 <p className="font-medium text-foreground">
                                                     {log.recoveryTime} day
                                                     {log.recoveryTime === 1 ? "" : "s"}
