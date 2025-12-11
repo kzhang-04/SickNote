@@ -44,7 +44,7 @@ const AuthedApp = () => {
                     }
                 />
 
-                {/* ---------- STUDENT-ONLY ROUTES ---------- */}
+                {/* student only */}
                 <Route
                     path="/history"
                     element={
@@ -111,7 +111,7 @@ const AuthedApp = () => {
                     }
                 />
 
-                {/* ---------- PROFESSOR-ONLY ROUTES ---------- */}
+                {/* prof only */}
                 <Route
                     path="/class-summary"
                     element={

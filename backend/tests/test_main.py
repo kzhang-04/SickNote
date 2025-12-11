@@ -11,8 +11,7 @@ def test_health_ok(client: TestClient):
     assert res.json() == {"status": "ok"}
 
 
-# ---------- Illness reports ----------
-
+# illnesses
 
 def test_create_report_success(client: TestClient, create_user):
     user = create_user("reportstudent@example.com", "password", role="student")
@@ -203,8 +202,7 @@ def test_delete_all_reports_only_current_user(
     assert remaining[0].user_id == user2.id
 
 
-# ---------- Friends & notifications ----------
-
+# friends
 
 def test_get_friends_only_current_user(
     client: TestClient,
@@ -408,8 +406,7 @@ def test_notify_friends_no_valid_friends(
     assert res.json()["detail"] == "No valid friends found"
 
 
-# ---------- Privacy settings ----------
-
+# privacy
 
 def test_get_privacy_setting(client: TestClient, create_user):
     user = create_user("privacy@example.com", "password", role="student")
@@ -528,8 +525,7 @@ def test_login_unknown_email(client: TestClient):
     assert "Incorrect email or password" in res.json()["detail"]
 
 
-# ---------- Professor class endpoints ----------
-
+# professor endpoints
 
 def test_professor_can_create_and_list_classes(
     client: TestClient,
@@ -608,8 +604,7 @@ def test_professor_delete_class(
     assert res.json()["message"] == "Class deleted"
 
 
-# ---------- Student class endpoints ----------
-
+# student endpoints
 
 def test_student_join_and_list_classes(
     client: TestClient,
@@ -706,8 +701,7 @@ def test_student_leave_class_not_enrolled(
     assert "Student is not enrolled in this class" in res.json()["detail"]
 
 
-# ---------- Class summary ----------
-
+# class
 
 def test_class_summary_no_enrollments(
     client: TestClient,

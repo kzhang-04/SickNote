@@ -24,7 +24,7 @@ const NotifyFriends = () => {
     const [sending, setSending] = useState(false); // sending notifications
     const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
-    // 🔒 Privacy-related state
+    // privacy state
     const [privacy, setPrivacy] = useState<PrivacyOption | null>(null);
     const [privacyError, setPrivacyError] = useState<string | null>(null);
 

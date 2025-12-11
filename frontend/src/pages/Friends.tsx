@@ -16,7 +16,7 @@ const Friends = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Add-friend form state
+    // add friend state
     const [newName, setNewName] = useState("");
     const [newEmail, setNewEmail] = useState("");
     const [saving, setSaving] = useState(false);
@@ -166,7 +166,8 @@ const Friends = () => {
         }
     };
 
-    // Professors shouldn't really be here, but just in case:
+    /* if professor tries to view the page, but i think i removed this functionalty and it just defaults
+    * to the login page but im gonna keep it here just in case */
     if (userRole === "professor") {
         return (
             <div className="min-h-screen bg-background">

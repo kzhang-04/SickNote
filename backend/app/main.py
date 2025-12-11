@@ -214,7 +214,7 @@ def notify_friends(
             to=friend.friend_email,
             subject="Your friend is sick",
             body=f"Hi {friend.friend_name}, your friend {user.full_name} is not feeling well, and"
-                 f"will not be in class today.",
+                 f" will not be in class today.",
             from_address=user.email,
         )
 
@@ -251,9 +251,6 @@ def get_class_summary(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    # (optional) enforce professor role, depending on your rules
-    # if current_user.role != "professor":
-    #     raise HTTPException(status_code=403, detail="Only professors can view class summary")
 
     enrollments = session.exec(
         select(ClassEnrollment).where(ClassEnrollment.class_id == class_id)

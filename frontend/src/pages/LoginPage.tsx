@@ -25,11 +25,11 @@ const LoginPage: React.FC = () => {
 
         try {
             if (mode === "login") {
-                // ---- LOGIN FLOW ----
+                // login
                 await login(email, password);
                 // If it doesn't throw, AuthContext will store token & role
             } else {
-                // ---- SIGNUP FLOW ----
+                // signup
                 if (!email || !password || !fullName) {
                     setError("Please fill in name, email, and password.");
                     setLoading(false);
@@ -51,7 +51,7 @@ const LoginPage: React.FC = () => {
                 try {
                     data = await res.json();
                 } catch {
-                    // ignore parse error, will handle via res.ok
+                    // ignore parse error will handle with res.ok
                 }
 
                 if (!res.ok) {
@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
                     throw new Error(msg);
                 }
 
-                // Signup succeeded → log in using the same credentials
+                // sign up succeeded so log in with same credentials
                 await login(email, password);
             }
         } catch (err: unknown) {

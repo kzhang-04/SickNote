@@ -27,7 +27,6 @@ class LogCreate(SQLModel):
         return v
 
 # For Illness Log
-# This will create the table, but you still need to read it with a class using FastAPI
 class IllnessLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")

@@ -13,7 +13,6 @@ type PrivacyOption = "everyone" | "friends" | "professors";
 const Classes = () => {
     const { userRole, userId, token } = useAuth();
 
-    // ---- state ----
     const [classes, setClasses] = useState<ClassItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -25,11 +24,11 @@ const Classes = () => {
     const [leavingId, setLeavingId] = useState<number | null>(null);
     const [leaveMessage, setLeaveMessage] = useState<string | null>(null);
 
-    // 🔒 privacy-related state
+    // privacy states
     const [privacy, setPrivacy] = useState<PrivacyOption | null>(null);
     const [privacyError, setPrivacyError] = useState<string | null>(null);
 
-    // ---- fetch enrolled classes ----
+    // fetch enrolled
     const fetchClasses = async () => {
         if (!userId || userRole !== "student") return;
 
@@ -97,7 +96,7 @@ const Classes = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId, userRole, token]);
 
-    // ---- professor view: just explanation ----
+    // prof view
     if (userRole === "professor") {
         return (
             <div className="min-h-screen bg-background">
@@ -123,7 +122,7 @@ const Classes = () => {
         );
     }
 
-    // While auth is still loading
+    // while auth is still loading
     if (!userId) {
         return (
             <div className="min-h-screen bg-background flex items-center justify-center">
@@ -132,7 +131,7 @@ const Classes = () => {
         );
     }
 
-    // 🔒 student view disabled when privacy = "friends"
+    // student view disabled when privacy = "friends"
     if (privacy === "friends") {
         return (
             <div className="min-h-screen bg-background">
@@ -163,7 +162,7 @@ const Classes = () => {
         );
     }
 
-    // ---- join class handler ----
+    // join class
     const handleJoin = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setJoinMessage(null);
@@ -220,7 +219,7 @@ const Classes = () => {
         }
     };
 
-    // ---- leave class handler ----
+    // leave class
     const leaveClass = async (classId: number) => {
         setLeaveMessage(null);
         try {
@@ -260,7 +259,7 @@ const Classes = () => {
         }
     };
 
-    // ---- student view (normal) ----
+    // student view
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 max-w-3xl space-y-8">

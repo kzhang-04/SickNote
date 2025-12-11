@@ -1,11 +1,7 @@
 import app.notifications as n
 
-
+# when smtp is false
 def test_send_email_mock_mode_when_use_smtp_false(monkeypatch, capsys):
-    """
-    When USE_SMTP is False (default), send_email should NOT use SMTP
-    and should instead print a mock email to stdout.
-    """
 
     # Force mock mode
     monkeypatch.setattr(n, "USE_SMTP", False)
@@ -30,14 +26,8 @@ def test_send_email_mock_mode_when_use_smtp_false(monkeypatch, capsys):
     assert "Body:\nBody" in out
 
 
+#when smtp is true
 def test_send_email_real_smtp_uses_override_from(monkeypatch):
-    """
-    When USE_SMTP is True and SMTP settings are present, send_email should:
-    - use smtplib.SMTP_SSL
-    - log in with SMTP_USER / SMTP_PASS
-    - send exactly one message
-    - respect the from_address override.
-    """
 
     # Enable real SMTP path
     monkeypatch.setattr(n, "USE_SMTP", True)

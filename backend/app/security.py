@@ -10,7 +10,7 @@ from .db import get_session
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import Depends, HTTPException, status
 
-# === Password hashing ===
+# password hashing
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
@@ -35,7 +35,7 @@ def authenticate_user(session: Session, email: str, password: str) -> Optional[U
     return user
 
 
-# === JWT config ===
+# JWT
 SECRET_KEY = "change-me-in-production"  # fine for class
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60

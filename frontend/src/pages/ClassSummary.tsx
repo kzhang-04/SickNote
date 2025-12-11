@@ -32,10 +32,10 @@ const ClassSummary = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Only professors can see class summary
+    // only professors can see class summary
     const isProfessor = userRole === "professor";
 
-    // 1) Fetch classes for professor
+    // fetch classes for professor
     useEffect(() => {
         if (!isProfessor || !userId || !token) {
             setLoading(false);
@@ -80,7 +80,7 @@ const ClassSummary = () => {
         void fetchClasses();
     }, [isProfessor, userId, token, selectedClassId]);
 
-    // 2) Fetch summary when a class is selected
+    // fetch summary when a class is selected
     useEffect(() => {
         if (!isProfessor || !token) return;
         if (selectedClassId == null) return;
@@ -118,7 +118,7 @@ const ClassSummary = () => {
         void fetchSummary();
     }, [isProfessor, selectedClassId, token]);
 
-    // If not professor, show restricted view
+    // if not professor, show restricted view
     if (!isProfessor) {
         return (
             <div className="min-h-screen bg-background">
@@ -149,7 +149,7 @@ const ClassSummary = () => {
 
     const currentClass = classes.find((c) => c.id === selectedClassId) ?? null;
 
-    // Professor view
+    // professor view
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 max-w-4xl">
