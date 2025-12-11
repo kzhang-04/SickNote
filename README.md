@@ -26,7 +26,7 @@ Continued:
 5. Open the backend terminal and run:  
    uvicorn app.main:app --reload --port 8000  
 6. Open the fronend terminal and run:  
-   npm install  
+   npm install    
    npm run dev  
 7. Click on the link that shows up in the frontend terminal or type http://localhost:5173/ in your browser
 8. Click on the sign up button.
