@@ -352,9 +352,7 @@ def get_class_summary(
         students=students_health,
     )
 
-
-# ---------------------- Privacy Settings ----------------------
-
+#privacy
 
 @app.get("/api/settings/privacy", response_model=PrivacyRead)
 def get_privacy_setting(
@@ -388,8 +386,7 @@ def update_privacy_setting(
     }
 
 
-# ---------------------- Auth ----------------------
-
+#auth
 
 @app.post("/auth/login", response_model=LoginResponse)
 def login(payload: LoginRequest, session: Session = Depends(get_session)):
@@ -457,8 +454,7 @@ def signup(payload: UserCreate, session: Session = Depends(get_session)):
     )
 
 
-# ---------------------- Professor Classes ----------------------
-
+#classes/prof
 
 @app.get("/api/professors/{professor_id}/classes", response_model=list[ClassRead])
 def get_professor_classes(
@@ -526,7 +522,7 @@ def delete_class(
     return {"message": "Class deleted"}
 
 
-# ---------------------- Student Classes ----------------------
+# student classes
 
 
 @app.get("/api/students/{student_id}/classes", response_model=list[ClassRead])
